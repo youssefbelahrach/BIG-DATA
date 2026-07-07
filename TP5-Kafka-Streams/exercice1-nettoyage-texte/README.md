@@ -25,12 +25,21 @@ Un message est rejeté si :
 
 ---
 
-## Architecture des Topics Kafka
+## Réponses aux questions
 
-L'application utilise les trois topics suivants :
+#### 1. Quel est le rôle du topic `text-dead-letter` ?
 
-- **`text-input`** : Topic d'entrée contenant les messages texte bruts.
-- **`text-clean`** : Topic de sortie contenant les messages valides après nettoyage.
-- **`text-dead-letter`** : Topic contenant les messages invalides ou rejetés.
+Il sert de zone de quarantaine pour stocker les messages invalides, rejetés ou mal formés qui n'ont pas passé les règles de validation. Cela permet d'isoler les erreurs sans interrompre le traitement du flux principal et d'analyser ultérieurement pourquoi ces messages ont échoué.
 
----
+#### 2. Pourquoi est-il important de nettoyer les messages avant de les traiter ?
+
+Le nettoyage garantit que les messages ont un format homogène avant leur validation et leur envoi vers les topics de sortie.
+
+#### 3. Pourquoi faut-il convertir le texte en majuscules avant de vérifier les mots interdits ?
+
+La conversion en majuscules permet de vérifier les mots interdits sans tenir compte de la manière dont ils ont été écrits.
+
+#### 4. Comment améliorer l'application pour gérer une liste de mots interdits stockée dans un fichier ou une base de données ?
+
+Au lieu d’écrire les mots interdits directement dans le code Java, on peut stocker la liste dans une source externe.
+Avantage : la liste peut être modifiée sans changer la logique principale de l’application.
