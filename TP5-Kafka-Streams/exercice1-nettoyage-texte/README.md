@@ -25,6 +25,47 @@ Un message est rejeté si :
 
 ---
 
+## Guide d'exécution (via Docker)
+
+Lancez les conteneurs Zookeeper et Kafka via Docker Compose :
+
+```bash
+docker-compose up -d
+```
+
+Exécutez les commandes suivantes pour créer les topics Kafka requis :
+
+```bash
+docker exec -it kafka kafka-topics --create --topic text-input --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+docker exec -it kafka kafka-topics --create --topic text-clean --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+docker exec -it kafka kafka-topics --create --topic text-dead-letter --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+```
+
+Depuis votre IDE, exécutez la méthode main de la classe TextCleaningApp. L'application se connectera au broker Kafka (localhost:9092) et se mettra en écoute.
+
+Ouvrez deux terminaux différents pour simuler le flux.
+
+Terminal 1 : Lancer le producteur (afin d'envoyer vos messages de test) :
+
+```bash
+docker exec -it kafka kafka-console-producer --topic text-input --bootstrap-server localhost:9092
+```
+
+Terminal 2 : Ecouter les messages nettoyés :
+
+```bash
+docker exec -it kafka kafka-console-consumer --topic text-clean --from-beginning --bootstrap-server localhost:9092
+```
+
+Exemple de données à copier/coller dans le Terminal 2 :
+
+Station1, 25.3, 60
+Station2, 35.0, 50
+Station2, 40.0, 45
+Station1, 32.0, 70
+
+---
+
 ## Réponses aux questions
 
 #### 1. Quel est le rôle du topic `text-dead-letter` ?
