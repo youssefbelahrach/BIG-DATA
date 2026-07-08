@@ -1,22 +1,20 @@
+"""
+TP 4 - Analyse en temps quasi reel des mesures de capteurs
+"""
+
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, avg, min, max, count
-from pyspark.sql.types import (
-    StructType,
-    StructField,
-    IntegerType,
-    StringType,
-    DoubleType,
-    TimestampType
-)
+from pyspark.sql.types import (StructType, StructField, IntegerType,
+                               StringType, DoubleType, TimestampType)
 
-# Création de la session Spark
+# 1. Creation de la session Spark
 spark = SparkSession.builder \
     .appName("TP PySpark Structured Streaming - Capteurs HDFS") \
     .getOrCreate()
 
 spark.sparkContext.setLogLevel("WARN")
 
-# Schéma explicite des fichiers CSV
+# 2. Definition du schema explicite des fichiers CSV
 schema_capteurs = StructType([
     StructField("id", IntegerType(), True),
     StructField("timestamp", TimestampType(), True),
@@ -25,49 +23,36 @@ schema_capteurs = StructType([
     StructField("unite", StringType(), True)
 ])
 
-# Chemins HDFS
-source_path = "hdfs://namenode:8020/streaming/capteurs"
+# 3. Chemins HDFS
+source_path        = "hdfs://namenode:8020/streaming/capteurs"
+checkpoint_stats   = "hdfs://namenode:8020/streaming/checkpoints/capteurs_stats"
+checkpoint_alertes = "hdfs://namenode:8020/streaming/checkpoints/capteurs_alertes"
 
-checkpoint_stats = (
-    "hdfs://namenode:8020/streaming/checkpoints/capteurs_stats"
-)
-
-checkpoint_alertes = (
-    "hdfs://namenode:8020/streaming/checkpoints/capteurs_alertes"
-)
-
-# Lecture du flux depuis HDFS
+# 4. Lecture du flux depuis HDFS
 df_stream = spark.readStream \
     .option("header", "true") \
     .option("maxFilesPerTrigger", 1) \
     .schema(schema_capteurs) \
     .csv(source_path)
 
-print("=== SCHEMA DES DONNEES ===")
 df_stream.printSchema()
 
-# Statistiques par capteur
-stats_capteurs = df_stream.groupBy("capteur").agg(
-    avg("valeur").alias("moyenne_valeur"),
-    min("valeur").alias("valeur_min"),
-    max("valeur").alias("valeur_max"),
-    count("*").alias("nombre_mesures")
-)
+# 5. Calcul des statistiques par capteur
+stats_capteurs = df_stream.groupBy("capteur") \
+    .agg(
+        avg("valeur").alias("moyenne_valeur"),
+        min("valeur").alias("valeur_min"),
+        max("valeur").alias("valeur_max"),
+        count("*").alias("nombre_mesures")
+    )
 
-# Détection des anomalies
+# 6. Detection des valeurs anormales
 seuil_anomalie = 35.0
 
-alertes = df_stream.filter(
-    col("valeur") > seuil_anomalie
-).select(
-    "id",
-    "timestamp",
-    "capteur",
-    "valeur",
-    "unite"
-)
+alertes = df_stream.filter(col("valeur") > seuil_anomalie) \
+    .select("id", "timestamp", "capteur", "valeur", "unite")
 
-# Affichage des statistiques
+# 7. Ecriture des statistiques dans la console
 query_stats = stats_capteurs.writeStream \
     .outputMode("complete") \
     .format("console") \
@@ -76,7 +61,7 @@ query_stats = stats_capteurs.writeStream \
     .trigger(processingTime="10 seconds") \
     .start()
 
-# Affichage des alertes
+# 8. Ecriture des alertes dans la console
 query_alertes = alertes.writeStream \
     .outputMode("append") \
     .format("console") \
@@ -85,5 +70,5 @@ query_alertes = alertes.writeStream \
     .trigger(processingTime="10 seconds") \
     .start()
 
-# Attente des flux
+# 9. Attendre l'arret des traitements
 spark.streams.awaitAnyTermination()
